@@ -98,8 +98,7 @@ final class RequestTests: XCTestCase {
         let shown = await lifeboat.askIfDue()
         XCTAssertTrue(shown)
         lifeboat.sheetAppeared()
-        try await Task.sleep(nanoseconds: 50_000_000) // the clock stops on the next frame
-        await lifeboat.screenShown()
+        await lifeboat.screenShown() // straight away, as the view does: it must wait for the frame, not race it
         let first = StubProtocol.bodies.last ?? [:]
         let ms = try XCTUnwrap(first["sheetMs"] as? Int, "time to sheet goes with the screen view")
         XCTAssertGreaterThanOrEqual(ms, 0)

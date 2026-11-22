@@ -35,7 +35,7 @@ public final class Lifeboat: ObservableObject {
     public static let daysBetweenAsks = 30
     /// This kit's version, sent with every request as `Lifeboat-Kit: swift/<version>` so Lifeboat knows which
     /// versions are still in use before changing the API. Bump it with each release tag.
-    public static let kitVersion = "1.5.0"
+    public static let kitVersion = "1.6.0"
     private static let day: TimeInterval = 24 * 3600
     /// The bucketed ask details sent with a signup, set when the screen is shown.
     private var currentAsk: [String: Any] = [:]
@@ -98,16 +98,21 @@ public final class Lifeboat: ObservableObject {
 
     /// When `askIfDue()` was called for the ask now on screen (system uptime), to time how fast the sheet appears.
     private var askStartedAt: TimeInterval?
-    /// Milliseconds from `askIfDue()` to the sheet appearing, sent once with the screen view.
-    private var sheetMs: Int?
+    /// The measurement in flight: finishes with the milliseconds from `askIfDue()` to the first drawn frame.
+    /// `screenShown()` waits for it, so the time always goes with the screen view it belongs to.
+    private var sheetTiming: Task<Int, Never>?
 
     /// Called by the signup view as it appears. Only asks started with `askIfDue()` are timed. The clock stops at the
     /// first frame drawn with the sheet in it (the next display refresh after it appears), not when SwiftUI builds it.
     func sheetAppeared() {
         guard let start = askStartedAt else { return }
         askStartedAt = nil
-        FirstFrame.after { [weak self] in
-            self?.sheetMs = max(0, Int(((ProcessInfo.processInfo.systemUptime - start) * 1000).rounded()))
+        sheetTiming = Task { @MainActor in
+            await withCheckedContinuation { (done: CheckedContinuation<Int, Never>) in
+                FirstFrame.after {
+                    done.resume(returning: max(0, Int(((ProcessInfo.processInfo.systemUptime - start) * 1000).rounded())))
+                }
+            }
         }
     }
 
@@ -138,7 +143,10 @@ public final class Lifeboat: ObservableObject {
         struct Ack: Decodable { let ok: Bool? }
         var body = experimentFields.merging(currentAsk) { a, _ in a }
         // How long the app waited from askIfDue() to the sheet on screen, in milliseconds. A duration only.
-        if let ms = sheetMs { body["sheetMs"] = ms; sheetMs = nil }
+        if let timing = sheetTiming {
+            sheetTiming = nil
+            body["sheetMs"] = await timing.value
+        }
         let _: Ack? = try? await request("POST", "/v1/screen-view", body: body)
     }
 
