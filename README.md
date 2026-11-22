@@ -11,13 +11,13 @@ Requires iOS 17 or macOS 14.
 In Xcode: **File → Add Package Dependencies…**, enter
 
 ```
-https://github.com/satya1395/lifeboat-swift
+https://github.com/getlifeboat-app/lifeboat-swift
 ```
 
 and add the `LifeboatKit` library to your app target. Or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/satya1395/lifeboat-swift", from: "1.0.0")
+.package(url: "https://github.com/getlifeboat-app/lifeboat-swift", from: "1.0.0")
 ```
 
 ## Use
