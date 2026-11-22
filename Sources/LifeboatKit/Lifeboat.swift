@@ -33,6 +33,9 @@ public final class Lifeboat: ObservableObject {
     /// The ask rule, fixed like the App Store's rating prompt: at most 3 asks in any 365 days, 30 days apart.
     public static let asksPerYear = 3
     public static let daysBetweenAsks = 30
+    /// This kit's version, sent with every request as `Lifeboat-Kit: swift/<version>` so Lifeboat knows which
+    /// versions are still in use before changing the API. Bump it with each release tag.
+    public static let kitVersion = "1.2.0"
     private static let day: TimeInterval = 24 * 3600
     /// The bucketed ask details sent with a signup, set when the screen is shown.
     private var currentAsk: [String: Any] = [:]
@@ -311,6 +314,7 @@ public final class Lifeboat: ObservableObject {
         req.timeoutInterval = 15
         req.setValue("Bearer \(appKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("swift/\(Self.kitVersion)", forHTTPHeaderField: "Lifeboat-Kit")
         if let body { req.httpBody = try JSONSerialization.data(withJSONObject: body) }
 
         let data: Data
