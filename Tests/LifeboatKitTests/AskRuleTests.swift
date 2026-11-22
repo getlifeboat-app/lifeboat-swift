@@ -6,12 +6,16 @@ final class StubProtocol: URLProtocol {
     nonisolated(unsafe) static var queue: [(Int, String)] = []
     nonisolated(unsafe) static var paths: [String] = []
     nonisolated(unsafe) static var bodies: [[String: Any]] = []
+    nonisolated(unsafe) static var headers: [[String: String]] = []
+    nonisolated(unsafe) static var methods: [String] = []
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func stopLoading() {}
     override func startLoading() {
         Self.paths.append(request.url?.path ?? "")
+        Self.headers.append(request.allHTTPHeaderFields ?? [:])
+        Self.methods.append(request.httpMethod ?? "")
         var data = request.httpBody ?? Data()
         if data.isEmpty, let stream = request.httpBodyStream {
             stream.open()
