@@ -357,6 +357,8 @@ struct LifeboatSignupSheetModifier: ViewModifier {
     let appearance: LifeboatAppearance?
     let offerPromotions: Bool?
     let icon: String?
+    /// Forces light or dark inside the sheet (a sheet doesn't take a colour scheme forced on your app). nil follows the system.
+    var colorScheme: ColorScheme? = nil
     let onDone: (LifeboatSignupView.Result) -> Void
     @State private var height: CGFloat = 560
     @State private var finished = false
@@ -372,6 +374,7 @@ struct LifeboatSignupSheetModifier: ViewModifier {
                 onDone(result)
             }
             .fixedSize(horizontal: false, vertical: true)
+            .preferredColorScheme(colorScheme)
             .background(GeometryReader { g in Color.clear.preference(key: SheetHeightKey.self, value: g.size.height) })
             .onPreferenceChange(SheetHeightKey.self) { if $0 > 0 { height = $0 } }
             #if os(iOS)
@@ -394,11 +397,12 @@ struct LifeboatAskModifier: ViewModifier {
     let appearance: LifeboatAppearance?
     let offerPromotions: Bool?
     let icon: String?
+    var colorScheme: ColorScheme? = nil
     let onDone: (LifeboatSignupView.Result) -> Void
 
     func body(content: Content) -> some View {
         content.modifier(LifeboatSignupSheetModifier(isPresented: $lifeboat.isAsking, appName: appName, appearance: appearance,
-                                                     offerPromotions: offerPromotions, icon: icon, onDone: onDone))
+                                                     offerPromotions: offerPromotions, icon: icon, colorScheme: colorScheme, onDone: onDone))
     }
 }
 
@@ -406,16 +410,18 @@ public extension View {
     /// Put this once on your root view. Then call `Lifeboat.shared.askIfDue()` at good moments in your app:
     /// the signup sheet appears here when an ask is due, at most 3 times a year for each person.
     func lifeboatAsk(appName: String? = nil, appearance: LifeboatAppearance? = nil, offerPromotions: Bool? = nil,
-                     icon: String? = nil, onDone: @escaping (LifeboatSignupView.Result) -> Void = { _ in }) -> some View {
-        modifier(LifeboatAskModifier(appName: appName, appearance: appearance, offerPromotions: offerPromotions, icon: icon, onDone: onDone))
+                     icon: String? = nil, colorScheme: ColorScheme? = nil,
+                     onDone: @escaping (LifeboatSignupView.Result) -> Void = { _ in }) -> some View {
+        modifier(LifeboatAskModifier(appName: appName, appearance: appearance, offerPromotions: offerPromotions, icon: icon,
+                                     colorScheme: colorScheme, onDone: onDone))
     }
 
     /// Shows Lifeboat's signup screen as a sheet sized to its content, over your app.
     /// Swiping the sheet away counts as "Not now".
     func lifeboatSignupSheet(isPresented: Binding<Bool>, appName: String? = nil, appearance: LifeboatAppearance? = nil,
-                             offerPromotions: Bool? = nil, icon: String? = nil,
+                             offerPromotions: Bool? = nil, icon: String? = nil, colorScheme: ColorScheme? = nil,
                              onDone: @escaping (LifeboatSignupView.Result) -> Void = { _ in }) -> some View {
         modifier(LifeboatSignupSheetModifier(isPresented: isPresented, appName: appName, appearance: appearance,
-                                             offerPromotions: offerPromotions, icon: icon, onDone: onDone))
+                                             offerPromotions: offerPromotions, icon: icon, colorScheme: colorScheme, onDone: onDone))
     }
 }
