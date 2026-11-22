@@ -35,7 +35,7 @@ public final class Lifeboat: ObservableObject {
     public static let daysBetweenAsks = 30
     /// This kit's version, sent with every request as `Lifeboat-Kit: swift/<version>` so Lifeboat knows which
     /// versions are still in use before changing the API. Bump it with each release tag.
-    public static let kitVersion = "1.6.0"
+    public static let kitVersion = "1.7.0"
     private static let day: TimeInterval = 24 * 3600
     /// The bucketed ask details sent with a signup, set when the screen is shown.
     private var currentAsk: [String: Any] = [:]
@@ -56,9 +56,13 @@ public final class Lifeboat: ObservableObject {
     ///   - appKey: Public key from the Lifeboat dashboard (lb_pub_test_… or lb_pub_live_…). Never a secret key.
     ///   - apiURL: Override for staging or self-hosting, e.g. https://staging.getlifeboat.app
     public func configure(appKey: String, apiURL: URL? = nil, appVersion: String? = nil) {
-        precondition(!appKey.hasPrefix("lb_sec_"), "[Lifeboat] That's a SECRET key. Never ship it in an app; use the public key (lb_pub_…).")
-        guard appKey.hasPrefix("lb_pub_") else {
-            assertionFailure("[Lifeboat] appKey must be a public key (lb_pub_…).")
+        // A wrong key never crashes the app: Lifeboat stays off (every call is a no-op or throws not_configured).
+        guard !appKey.hasPrefix("lb_sec_") else {
+            print("[Lifeboat] That's a SECRET key. Never ship it in an app; use the public key (lb_pub_…). Lifeboat is off.")
+            return
+        }
+        guard appKey.hasPrefix("lb_pub_live_") || appKey.hasPrefix("lb_pub_test_") else {
+            print("[Lifeboat] appKey must be a public key (lb_pub_live_… or lb_pub_test_…). Lifeboat is off.")
             return
         }
         self.appKey = appKey
@@ -87,7 +91,10 @@ public final class Lifeboat: ObservableObject {
     /// unsubscribed, bounced or was erased is never asked again; they can still sign up in your settings screen.
     @discardableResult
     public func askIfDue() async -> Bool {
-        guard shouldPrompt, !isAsking else { return false }
+        // askDeciding covers the wait for the config, so two calls at the same moment can't both show a sheet.
+        guard shouldPrompt, !isAsking, !askDeciding else { return false }
+        askDeciding = true
+        defer { askDeciding = false }
         let started = ProcessInfo.processInfo.systemUptime
         await refreshConfigIfStale()
         guard remoteConfig?.accepting != false, state == nil else { return false }
@@ -96,11 +103,13 @@ public final class Lifeboat: ObservableObject {
         return true
     }
 
+    /// True while an `askIfDue()` is waiting for the config, before it decides.
+    private var askDeciding = false
     /// When `askIfDue()` was called for the ask now on screen (system uptime), to time how fast the sheet appears.
     private var askStartedAt: TimeInterval?
     /// The measurement in flight: finishes with the milliseconds from `askIfDue()` to the first drawn frame.
     /// `screenShown()` waits for it, so the time always goes with the screen view it belongs to.
-    private var sheetTiming: Task<Int, Never>?
+    private var sheetTiming: Task<Int?, Never>?
 
     /// Called by the signup view as it appears. Only asks started with `askIfDue()` are timed. The clock stops at the
     /// first frame drawn with the sheet in it (the next display refresh after it appears), not when SwiftUI builds it.
@@ -108,10 +117,17 @@ public final class Lifeboat: ObservableObject {
         guard let start = askStartedAt else { return }
         askStartedAt = nil
         sheetTiming = Task { @MainActor in
-            await withCheckedContinuation { (done: CheckedContinuation<Int, Never>) in
-                FirstFrame.after {
-                    done.resume(returning: max(0, Int(((ProcessInfo.processInfo.systemUptime - start) * 1000).rounded())))
+            await withCheckedContinuation { (done: CheckedContinuation<Int?, Never>) in
+                // Resumed exactly once: with the time at the first frame, or with nothing after a second if no frame
+                // comes (app in the background, display link paused). No made-up time, and the screen view isn't held up.
+                var resumed = false
+                let finish: (Int?) -> Void = { ms in
+                    guard !resumed else { return }
+                    resumed = true
+                    done.resume(returning: ms)
                 }
+                FirstFrame.after { finish(max(0, Int(((ProcessInfo.processInfo.systemUptime - start) * 1000).rounded()))) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { MainActor.assumeIsolated { finish(nil) } }
             }
         }
     }
@@ -145,7 +161,7 @@ public final class Lifeboat: ObservableObject {
         // How long the app waited from askIfDue() to the sheet on screen, in milliseconds. A duration only.
         if let timing = sheetTiming {
             sheetTiming = nil
-            body["sheetMs"] = await timing.value
+            if let ms = await timing.value { body["sheetMs"] = ms }
         }
         let _: Ack? = try? await request("POST", "/v1/screen-view", body: body)
     }
