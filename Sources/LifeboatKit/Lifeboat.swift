@@ -35,7 +35,7 @@ public final class Lifeboat: ObservableObject {
     public static let daysBetweenAsks = 30
     /// This kit's version, sent with every request as `Lifeboat-Kit: swift/<version>` so Lifeboat knows which
     /// versions are still in use before changing the API. Bump it with each release tag.
-    public static let kitVersion = "1.3.0"
+    public static let kitVersion = "1.4.0"
     private static let day: TimeInterval = 24 * 3600
     /// The bucketed ask details sent with a signup, set when the screen is shown.
     private var currentAsk: [String: Any] = [:]
@@ -88,10 +88,27 @@ public final class Lifeboat: ObservableObject {
     @discardableResult
     public func askIfDue() async -> Bool {
         guard shouldPrompt, !isAsking else { return false }
+        let started = ProcessInfo.processInfo.systemUptime
         await refreshConfigIfStale()
         guard remoteConfig?.accepting != false, state == nil else { return false }
+        askStartedAt = started
         isAsking = true
         return true
+    }
+
+    /// When `askIfDue()` was called for the ask now on screen (system uptime), to time how fast the sheet appears.
+    private var askStartedAt: TimeInterval?
+    /// Milliseconds from `askIfDue()` to the sheet appearing, sent once with the screen view.
+    private var sheetMs: Int?
+
+    /// Called by the signup view as it appears. Only asks started with `askIfDue()` are timed. The clock stops at the
+    /// first frame drawn with the sheet in it (the next display refresh after it appears), not when SwiftUI builds it.
+    func sheetAppeared() {
+        guard let start = askStartedAt else { return }
+        askStartedAt = nil
+        FirstFrame.after { [weak self] in
+            self?.sheetMs = max(0, Int(((ProcessInfo.processInfo.systemUptime - start) * 1000).rounded()))
+        }
     }
 
     /// True when an ask is due (the same rule as `askIfDue()`). Use it to decide whether to show
@@ -119,7 +136,10 @@ public final class Lifeboat: ObservableObject {
         defaults.set(asks, forKey: asksKey)
         currentAsk = asks.count <= Self.asksPerYear ? ["ask": asks.count, "launches": launchesBucket, "age": ageBucket] : [:]
         struct Ack: Decodable { let ok: Bool? }
-        let _: Ack? = try? await request("POST", "/v1/screen-view", body: experimentFields.merging(currentAsk) { a, _ in a })
+        var body = experimentFields.merging(currentAsk) { a, _ in a }
+        // How long the app waited from askIfDue() to the sheet on screen, in milliseconds. A duration only.
+        if let ms = sheetMs { body["sheetMs"] = ms; sheetMs = nil }
+        let _: Ack? = try? await request("POST", "/v1/screen-view", body: body)
     }
 
     private var launchesBucket: String {
@@ -349,4 +369,29 @@ public final class Lifeboat: ObservableObject {
         }
         #endif
     }
+}
+
+/// Runs a closure on the next frame the display draws: the moment a view that just appeared is on screen.
+@MainActor
+enum FirstFrame {
+    static func after(_ done: @escaping @MainActor () -> Void) {
+        #if canImport(UIKit)
+        let target = Target(done)
+        let link = CADisplayLink(target: target, selector: #selector(Target.tick(_:)))
+        link.add(to: .main, forMode: .common)
+        #else
+        DispatchQueue.main.async { done() }
+        #endif
+    }
+
+    #if canImport(UIKit)
+    private final class Target: NSObject {
+        let done: @MainActor () -> Void
+        init(_ done: @escaping @MainActor () -> Void) { self.done = done }
+        @objc func tick(_ link: CADisplayLink) {
+            link.invalidate()
+            MainActor.assumeIsolated { done() }
+        }
+    }
+    #endif
 }

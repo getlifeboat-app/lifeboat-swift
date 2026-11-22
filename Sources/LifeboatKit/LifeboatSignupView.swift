@@ -71,6 +71,7 @@ public struct LifeboatSignupView: View {
         .padding(.horizontal, 24).padding(.top, presentation == .sheet ? 28 : 60).padding(.bottom, 24)
         .background(t.background.ignoresSafeArea())
         // config first, so the view is counted against the version this install was given
+        .onAppear { lifeboat.sheetAppeared() }
         .task {
             await lifeboat.refreshConfigIfStale()
             // Not taking signups right now: no ask is counted, so the screen comes back once the developer's

@@ -66,7 +66,7 @@ Need more than the options cover? The kit is plain Swift under the MIT license: 
 
 ## Privacy
 
-The package ships a privacy manifest (`PrivacyInfo.xcprivacy`). It sends the email address a person types, and anonymous counts (which ask this was, launches and days since install, in ranges) with no device or user id. No tracking.
+The package ships a privacy manifest (`PrivacyInfo.xcprivacy`). It sends the email address a person types, anonymous counts (which ask this was, launches and days since install, in ranges), and how many milliseconds the signup sheet took to appear, with no device or user id. No tracking.
 
 ## License
 
