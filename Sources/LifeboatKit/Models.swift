@@ -61,7 +61,6 @@ public struct LifeboatRemoteConfig: Codable, Sendable {
         public var message: String?
         public var continueLabel: String?
         public var skipLabel: String?
-        public var offerPromotions: Bool?
         public var appearance: LifeboatAppearance?
     }
 
@@ -81,7 +80,7 @@ public struct LifeboatRemoteConfig: Codable, Sendable {
     public let appName: String
     public let version: Double
     /// false while the app can't take new signups (the developer's plan is past its limit, or signups are
-    /// paused). The kit then doesn't show the signup screen. Missing from older servers: treated as true.
+    /// paused). The kit then doesn't show the signup screen.
     public var accepting: Bool?
     public var links: Links?
     public let screen: Screen
