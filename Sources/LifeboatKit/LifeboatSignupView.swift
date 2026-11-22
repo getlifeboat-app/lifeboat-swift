@@ -326,7 +326,7 @@ public struct LifeboatSignupView: View {
                                                          consentText: "\(message) \(Lifeboat.lockedDisclosure)")
                 // Already confirmed (signed up before): nothing to check. Otherwise show the inbox step.
                 if state.status == .confirmed { onDone(.subscribed) } else { note = nil; sentTo = address }
-            } catch let e as LifeboatError where e.code == "signups_closed" && presentation == .sheet {
+            } catch let e as LifeboatError where (e.code == "signups_closed" || e.code == "verification_required") && presentation == .sheet {
                 turnedAway = true
             } catch {
                 self.error = (error as? LocalizedError)?.errorDescription ?? "Something went wrong."

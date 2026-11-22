@@ -35,7 +35,7 @@ public final class Lifeboat: ObservableObject {
     public static let daysBetweenAsks = 30
     /// This kit's version, sent with every request as `Lifeboat-Kit: swift/<version>` so Lifeboat knows which
     /// versions are still in use before changing the API. Bump it with each release tag.
-    public static let kitVersion = "1.2.0"
+    public static let kitVersion = "1.3.0"
     private static let day: TimeInterval = 24 * 3600
     /// The bucketed ask details sent with a signup, set when the screen is shown.
     private var currentAsk: [String: Any] = [:]
@@ -315,6 +315,8 @@ public final class Lifeboat: ObservableObject {
         req.setValue("Bearer \(appKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("swift/\(Self.kitVersion)", forHTTPHeaderField: "Lifeboat-Kit")
+        // Lets Lifeboat check that signups for a verified app come from that app's bundle ID.
+        if let bundle = Bundle.main.bundleIdentifier { req.setValue(bundle, forHTTPHeaderField: "Lifeboat-Bundle") }
         if let body { req.httpBody = try JSONSerialization.data(withJSONObject: body) }
 
         let data: Data
