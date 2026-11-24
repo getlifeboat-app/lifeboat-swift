@@ -55,6 +55,7 @@ public struct LifeboatPreferencesView: View {
             } else {
                 inactiveSection
             }
+            poweredBy
         }
         .navigationTitle("Email updates")
         .task { await lifeboat.refresh() }
@@ -144,6 +145,31 @@ public struct LifeboatPreferencesView: View {
             }
         } } footer: {
             Text("\(appName) uses email only to reach you about important changes.").foregroundStyle(secondary)
+        }
+    }
+
+    /// "Powered by lifeboat · Terms · Privacy", the same line as the signup sheet: who runs the emails, under the last section.
+    /// Shown once the server sends Lifeboat's links.
+    @ViewBuilder
+    private var poweredBy: some View {
+        if let links = lifeboat.remoteConfig?.links,
+           let terms = links.terms.flatMap(URL.init(string:)), let privacy = links.privacy.flatMap(URL.init(string:)) {
+            Section {} footer: {
+                HStack(spacing: 10) {
+                    HStack(spacing: 5) {
+                        LifeboatMark().stroke(secondary, lineWidth: 1.6).frame(width: 13, height: 13)
+                        Text("Powered by ") + Text("lifeboat").fontWeight(.bold)
+                    }
+                    .accessibilityElement(children: .combine)
+                    Rectangle().fill(secondary.opacity(0.35)).frame(width: 1, height: 14).accessibilityHidden(true)
+                    Link("Terms", destination: terms)
+                    Link("Privacy", destination: privacy)
+                }
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .foregroundStyle(secondary).tint(secondary)
+                .font(.caption)
+                .frame(maxWidth: .infinity)
+            }
         }
     }
 

@@ -35,7 +35,7 @@ public final class Lifeboat: ObservableObject {
     public static let daysBetweenAsks = 30
     /// This kit's version, sent with every request as `Lifeboat-Kit: swift/<version>` so Lifeboat knows which
     /// versions are still in use before changing the API. Bump it with each release tag.
-    public static let kitVersion = "1.7.0"
+    public static let kitVersion = "1.8.0"
     private static let day: TimeInterval = 24 * 3600
     /// The bucketed ask details sent with a signup, set when the screen is shown.
     private var currentAsk: [String: Any] = [:]
