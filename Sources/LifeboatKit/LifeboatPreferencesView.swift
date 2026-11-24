@@ -156,11 +156,14 @@ public struct LifeboatPreferencesView: View {
            let terms = links.terms.flatMap(URL.init(string:)), let privacy = links.privacy.flatMap(URL.init(string:)) {
             Section {} footer: {
                 HStack(spacing: 10) {
-                    HStack(spacing: 5) {
-                        LifeboatMark().stroke(secondary, lineWidth: 1.6).frame(width: 13, height: 13)
-                        Text("Powered by ") + Text("lifeboat").fontWeight(.bold)
+                    Link(destination: links.home.flatMap(URL.init(string:)) ?? URL(string: "https://getlifeboat.app")!) {
+                        HStack(spacing: 5) {
+                            LifeboatMark().stroke(secondary, lineWidth: 1.6).frame(width: 13, height: 13)
+                            Text("Powered by ") + Text("lifeboat").fontWeight(.bold)
+                        }
+                        .accessibilityElement(children: .combine)
                     }
-                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Powered by Lifeboat")
                     Rectangle().fill(secondary.opacity(0.35)).frame(width: 1, height: 14).accessibilityHidden(true)
                     Link("Terms", destination: terms)
                     Link("Privacy", destination: privacy)
